@@ -6,13 +6,19 @@
 En cualquier terminal, ejecuta:
 ```
 java -version
-javac -versión
+javac -version
 ```
 
 Necesitas JDK 11 o superior. Si solo aparece java -version pero no javac, tienes solo el JRE; instala el JDK desde adoptium.net o usa sudo apt install default-jdk en Linux.
 Paso 1 — Crear la estructura de carpetas y archivos
 Ubícate en la carpeta donde quieras tener el proyecto (por ejemplo ~/proyectos/utorrent) y crea las carpetas:
-Linux/Mac:
+
+**Windows PowerShell**:
+```
+New-Item -ItemType Directory -Force -Path src\utorrent\app, src\utorrent\p2p, src\utorrent\tracker, src\utorrent\modelos, src\utorrent\utils, src\utorrent\protocolo, out, archivos-a-compartir, descargas
+```
+
+**Linux/Mac**:
 
 ```
 mkdir -p src/utorrent/{app,p2p,tracker,modelos,utils,protocolo}
@@ -21,10 +27,6 @@ mkdir -p archivos-a-compartir
 mkdir -p descargas
 ```
 
-Windows PowerShell:
-```
-New-Item -ItemType Directory -Force -Path src\utorrent\app, src\utorrent\p2p, src\utorrent\tracker, src\utorrent\modelos, src\utorrent\utils, src\utorrent\protocolo, out, archivos-a-compartir, descargas
-```
 
 Luego copia cada archivo .java que te entregué a su carpeta correspondiente. Verifica que el package declarado en la primera línea de cada archivo coincida con la carpeta. Por ejemplo:
 
@@ -34,39 +36,42 @@ Luego copia cada archivo .java que te entregué a su carpeta correspondiente. Ve
 
 ### Paso 2 — Compilar todo el proyecto
 Desde la raíz del proyecto (la carpeta que contiene src/ y out/):
-Linux/Mac:
-```
-javac -d out $(find src -name "*.java")
-```
 
-Windows PowerShell:
+**Windows PowerShell**:
 ```
 javac -d out (Get-ChildItem -Recurse -Filter *.java -Path src | ForEach-Object { $_.FullName })
 ```
 
-Windows CMD:
+**Windows CMD**:
 ```
 dir /s /b src\*.java > sources.txt
 javac -d out @sources.txt
 ```
+
+**Linux/Mac**:
+```
+javac -d out $(find src -name "*.java")
+```
+
+
 
 
 Si todo está bien, no debe imprimir nada (o solo un par de warnings sobre serial, que son inofensivos). Si imprime errores, revisa que cada archivo tenga el package correcto y que esté en su carpeta correspondiente.
 
 ### Paso 3 — Preparar un archivo de prueba para compartir
 Crea un archivo cualquiera de menos de 50 MB (recuerda el límite del enunciado). Por ejemplo:
-Linux/Mac:
-```
-# archivo de 2 MB con datos aleatorios
-dd if=/dev/urandom of=archivos-a-compartir/video.mp4 bs=1024 count=2048
-```
 
-Windows PowerShell:
+**Windows PowerShell**:
 ```
 # archivo de 2 MB con datos aleatorios
 $datos = New-Object byte[] 2097152
 (New-Object Random).NextBytes($datos)
 [IO.File]::WriteAllBytes("archivos-a-compartir\video.mp4", $datos)
+```
+**Linux/Mac**:
+```
+# archivo de 2 MB con datos aleatorios
+dd if=/dev/urandom of=archivos-a-compartir/video.mp4 bs=1024 count=2048
 ```
 
 O simplemente copia cualquier MP3, PDF o imagen pequeña que tengas y renómbrala a algo como video.mp4.
@@ -187,17 +192,18 @@ Las piezas se descargan en orden no secuencial gracias a la selección aleatoria
 
 Verificar que la descarga es correcta
 Abre una cuarta terminal (o usa cualquiera de las anteriores tras detener su programa) y compara los hashes:
-Linux/Mac:
-```
-sha1sum archivos-a-compartir/video.mp4 descargas/video.mp4
-```
 
-
-Windows PowerShell:
+**Windows PowerShell**:
 ```
 Get-FileHash archivos-a-compartir/video.mp4 -Algorithm SHA1
 Get-FileHash descargas/video.mp4 -Algorithm SHA1
 ```
+
+**Linux/Mac**:
+```
+sha1sum archivos-a-compartir/video.mp4 descargas/video.mp4
+```
+
 Ambos hashes deben ser idénticos. Si lo son, has completado la prueba: el archivo se transfirió bit a bit por el protocolo P2P.
 Detener todo
 
