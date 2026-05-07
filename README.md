@@ -253,3 +253,6 @@ Estás pidiendo un nombre que ningún seeder ha publicado. Verifica que el seede
 **El handshake falla con infoHash distinto al esperado**
 Esto pasa si dos seeders distintos comparten archivos con el mismo nombre pero contenido diferente. El leecher recibe los metadatos del primero pero conecta al segundo. Solución: limpia el tracker (reinícialo) y vuelve a publicar.
 
+## Como correrlo en VS Code
+1. Abrir el proyecto en su carpeta Raiz.
+2. Y seguir los pasos comentados.
