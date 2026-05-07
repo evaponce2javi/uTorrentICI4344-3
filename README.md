@@ -53,24 +53,6 @@ javac -d out @sources.txt
 
 Si todo está bien, no debe imprimir nada (o solo un par de warnings sobre serial, que son inofensivos). Si imprime errores, revisa que cada archivo tenga el package correcto y que esté en su carpeta correspondiente.
 
-### Paso 3 — Preparar un archivo de prueba para compartir
-Crea un archivo cualquiera de menos de 50 MB (recuerda el límite del enunciado). Por ejemplo:
-Linux/Mac:
-```
-# archivo de 2 MB con datos aleatorios
-dd if=/dev/urandom of=archivos-a-compartir/video.mp4 bs=1024 count=2048
-```
-
-Windows PowerShell:
-```
-# archivo de 2 MB con datos aleatorios
-$datos = New-Object byte[] 2097152
-(New-Object Random).NextBytes($datos)
-[IO.File]::WriteAllBytes("archivos-a-compartir\video.mp4", $datos)
-```
-
-O simplemente copia cualquier MP3, PDF o imagen pequeña que tengas y renómbrala a algo como video.mp4.
-
 ## Ejecución del sistema
 Ahora abres 3 terminales separadas, todas ubicadas en la raíz del proyecto. El orden importa: tracker primero, después seeder, finalmente leecher.
 
@@ -98,7 +80,26 @@ Tamaño del pool de hilos (sugerido 32): 32
 Esta terminal queda bloqueada con el tracker corriendo. No la cierres mientras hagas pruebas.
 
 ### Terminal 2 — Usuario 1 (Seeder)
-Abre una segunda terminal en la misma carpeta del proyecto y ejecuta:
+
+#### Preparar un archivo de prueba para compartir
+Abre una segunda terminal en la misma carpeta del proyecto.
+Crea un archivo cualquiera de menos de 50 MB (recuerda el límite del enunciado). Por ejemplo:
+
+Windows PowerShell:
+```
+# archivo de 2 MB con datos aleatorios
+$datos = New-Object byte[] 2097152
+(New-Object Random).NextBytes($datos)
+[IO.File]::WriteAllBytes("archivos-a-compartir\video.mp4", $datos)
+```
+
+Para usuarios de Linux/Mac:
+```
+# archivo de 2 MB con datos aleatorios
+dd if=/dev/urandom of=archivos-a-compartir/video.mp4 bs=1024 count=2048
+```
+
+Ejecuta el siguiente comando para correr la aplicacion del usuario:
 
 ```
 java -cp out utorrent.app.AplicacionCliente
