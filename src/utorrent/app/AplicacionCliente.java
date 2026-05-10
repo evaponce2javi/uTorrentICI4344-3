@@ -20,14 +20,24 @@ import java.util.Scanner;
 /**
  * Punto de entrada interactivo del cliente BitTorrent.
  *
- * Implementa las dos opciones del enunciado:
- *   1. Compartir archivo (Seeder): pide ruta, valida tamaño <= 50 MB, hashea
- *      por piezas, anuncia al tracker y sirve a quien se conecte.
- *   2. Descargar archivo (Leecher): pide nombre, consulta al tracker, recibe
- *      la lista de peers y descarga por bloques de 16 KB.
+ * Implementa las dos funciones principales del sistema:
+ *   F1 — Compartir archivo (Seeder): hashea el archivo por piezas, anuncia
+ *        al tracker y sirve bloques a quien se conecte.
+ *   F2 — Descargar archivo (Leecher): consulta al tracker por nombre, recibe
+ *        la lista de peers, descarga el archivo por bloques de 16 KB y, al
+ *        completar, transiciona automáticamente a seeder.
  *
- * Toda la configuración de red (IP, puertos) se pide al usuario, cumpliendo
- * la regla "Cero Hardcoding" del enunciado.
+ * Transparencia de acceso:
+ *   La transición leecher → seeder elimina la distinción estática de roles.
+ *   Un nodo que termina de descargar un archivo pasa a compartirlo con las
+ *   mismas operaciones que un seeder original, sin distinguir si el archivo
+ *   es "local" o "descargado". El código de aplicación trata ambos casos
+ *   con la misma abstracción (SesionTorrent + LectorBloques).
+ *
+ * Transparencia de ubicación:
+ *   La dirección del tracker se resuelve en ConfiguracionRed sin que el
+ *   usuario necesite conocerla a priori (variable de entorno → archivo de
+ *   propiedades → consola).
  */
 public class AplicacionCliente {
 
@@ -41,10 +51,10 @@ public class AplicacionCliente {
         try (Scanner sc = new Scanner(System.in)) {
             ConfiguracionRed config = new ConfiguracionRed(sc);
 
-            String ipTracker = config.pedirIpTracker();
-            int puertoTracker = config.pedirPuertoTracker();
-            int puertoEscucha = config.pedirPuertoEscuchaLocal();
-            String miPeerId = GeneradorPeerId.generar();
+            String ipTracker     = config.pedirIpTracker();
+            int    puertoTracker = config.pedirPuertoTracker();
+            int    puertoEscucha = config.pedirPuertoEscuchaLocal();
+            String miPeerId      = GeneradorPeerId.generar();
             System.out.println("Mi peerId: " + miPeerId);
 
             ClienteTracker clienteTracker = new ClienteTracker(ipTracker, puertoTracker);
@@ -72,6 +82,10 @@ public class AplicacionCliente {
         }
     }
 
+    // ------------------------------------------------------------------ //
+    //  Modo Seeder                                                         //
+    // ------------------------------------------------------------------ //
+
     private static void ejecutarSeeder(Scanner sc, ConfiguracionRed config,
                                        ClienteTracker clienteTracker,
                                        String miPeerId, int puertoEscucha) throws IOException {
@@ -85,7 +99,7 @@ public class AplicacionCliente {
         }
 
         long longitudTotal = Files.size(archivo);
-        int longitudPieza = LONGITUD_PIEZA_DEFECTO;
+        int  longitudPieza = LONGITUD_PIEZA_DEFECTO;
         System.out.printf("[Seeder] Hasheando %s (%d bytes en piezas de %d bytes)...%n",
                 archivo.getFileName(), longitudTotal, longitudPieza);
 
@@ -108,27 +122,31 @@ public class AplicacionCliente {
         }
 
         LectorBloques lector = new LectorBloques(archivo);
-        SesionTorrent sesion = new SesionTorrent(
-                meta, miPeerId, puertoEscucha,
-                SesionTorrent.Modo.SEEDER,
-                clienteTracker, lector, null);
-
-        Runtime.getRuntime().addShutdownHook(new Thread(sesion::detener));
-        sesion.iniciar();
-
-        System.out.println("[Seeder] Compartiendo. Presiona ENTER para detener...");
-        sc.nextLine();
-        sesion.detener();
+        iniciarYEsperarSeeder(sc, clienteTracker, miPeerId, puertoEscucha, meta, lector);
     }
 
+    // ------------------------------------------------------------------ //
+    //  Modo Leecher con transición automática a Seeder                    //
+    // ------------------------------------------------------------------ //
+
+    /**
+     * Descarga el archivo y, al completar, transiciona automáticamente
+     * a modo seeder para compartirlo con otros peers.
+     *
+     * Esto implementa transparencia de acceso: el nodo trata su propio
+     * archivo descargado con las mismas operaciones que usa un seeder
+     * original. No hay distinción en el código de la capa P2P entre
+     * "archivo propio" y "archivo descargado".
+     */
     private static void ejecutarLeecher(Scanner sc, ConfiguracionRed config,
                                         ClienteTracker clienteTracker,
                                         String miPeerId, int puertoEscucha) throws IOException {
-        String nombreArchivo = config.pedirNombreArchivo();
+        String nombreArchivo  = config.pedirNombreArchivo();
         String carpetaDestino = config.pedirCarpetaDestino();
 
         System.out.println("[Leecher] Consultando al tracker por '" + nombreArchivo + "'...");
-        RespuestaAnuncio respuestaConsulta = clienteTracker.consultarPorNombre(nombreArchivo, miPeerId);
+        RespuestaAnuncio respuestaConsulta = clienteTracker.consultarPorNombre(
+                nombreArchivo, miPeerId);
         if (respuestaConsulta == null || !respuestaConsulta.isExito()) {
             System.err.println("[Leecher] El tracker no conoce el archivo solicitado.");
             return;
@@ -146,35 +164,120 @@ public class AplicacionCliente {
         EscritorBloques escritor = new EscritorBloques(destino, meta.getLongitudTotal());
         System.out.println("[Leecher] Espacio reservado en " + destino);
 
-        SesionTorrent sesion = new SesionTorrent(
+        // ── Fase de descarga ────────────────────────────────────────────
+        SesionTorrent sesionLeecher = new SesionTorrent(
                 meta, miPeerId, puertoEscucha,
                 SesionTorrent.Modo.LEECHER,
                 clienteTracker, null, escritor);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(sesion::detener));
-        sesion.iniciar();
+        // Shutdown hook defensivo: si el proceso se interrumpe durante la
+        // descarga, se envía announce "detenido" al tracker.
+        Thread hookDescarga = new Thread(sesionLeecher::detener,
+                "shutdown-leecher");
+        Runtime.getRuntime().addShutdownHook(hookDescarga);
 
-        System.out.println("[Leecher] Descarga en curso. Espera mientras se completan las piezas...");
+        sesionLeecher.iniciar();
+        descargaConProgreso(sesionLeecher);
+
+        // ── Verificación y cierre limpio de la sesión de descarga ───────
+        if (!sesionLeecher.estaCompleto()) {
+            // Timeout o interrupción: no transicionamos.
+            sesionLeecher.detener();
+            quitarHook(hookDescarga);
+            return;
+        }
+
+        System.out.println("[Leecher] ✓ Descarga completa: " + destino);
+
+        // Detiene la sesión de leecher: envía announce "detenido" al tracker
+        // y cierra el EscritorBloques (que ya fue sincronizado a disco por
+        // verificarCompletado() antes del announce "completado").
+        sesionLeecher.detener();
+        quitarHook(hookDescarga);
+
+        // ── Transición transparente a modo Seeder ───────────────────────
+        //
+        // El archivo descargado se abre ahora como LectorBloques, exactamente
+        // igual que lo haría un seeder original. La capa P2P (SesionPar,
+        // ServidorPar) no distingue si el archivo es "propio" o "descargado":
+        // ambos se sirven con la misma abstracción. Esto evidencia
+        // transparencia de acceso.
+        System.out.println();
+        System.out.println("[Seeder] ── Activando modo seeder con el archivo descargado ──");
+
+        LectorBloques lector = new LectorBloques(destino);
+        iniciarYEsperarSeeder(sc, clienteTracker, miPeerId, puertoEscucha, meta, lector);
+    }
+
+    // ------------------------------------------------------------------ //
+    //  Helpers compartidos                                                 //
+    // ------------------------------------------------------------------ //
+
+    /**
+     * Inicia una SesionTorrent en modo SEEDER y espera que el usuario
+     * presione ENTER para detenerla. Se reutiliza tanto para seeders
+     * originales como para leechers que transicionaron.
+     */
+    private static void iniciarYEsperarSeeder(Scanner sc,
+                                               ClienteTracker clienteTracker,
+                                               String miPeerId, int puertoEscucha,
+                                               MetadatosTorrent meta,
+                                               LectorBloques lector) throws IOException {
+        SesionTorrent sesion = new SesionTorrent(
+                meta, miPeerId, puertoEscucha,
+                SesionTorrent.Modo.SEEDER,
+                clienteTracker, lector, null);
+
+        Thread hookSeeder = new Thread(sesion::detener, "shutdown-seeder");
+        Runtime.getRuntime().addShutdownHook(hookSeeder);
+
+        sesion.iniciar();
+        System.out.println("[Seeder] Compartiendo. Presiona ENTER para detener...");
+
+        sc.nextLine();
+
+        sesion.detener();
+        quitarHook(hookSeeder);
+
+        try { lector.close(); } catch (IOException ignorada) {}
+    }
+
+    /**
+     * Bucle de progreso de la descarga. Imprime el porcentaje en la misma
+     * línea y aplica un timeout de 10 minutos.
+     */
+    private static void descargaConProgreso(SesionTorrent sesion) {
+        System.out.println("[Leecher] Descarga en curso...");
         long inicio = System.currentTimeMillis();
+
         while (!sesion.estaCompleto()) {
             try { Thread.sleep(500); } catch (InterruptedException ie) { break; }
+
             if (sesion.getGestorPiezas() != null) {
                 int hechas = sesion.getGestorPiezas().piezasCompletadas();
-                int total = sesion.getGestorPiezas().totalPiezas();
+                int total  = sesion.getGestorPiezas().totalPiezas();
                 System.out.printf("\r[Leecher] Progreso: %d/%d piezas (%.1f%%)",
                         hechas, total, hechas * 100.0 / total);
             }
-            if (System.currentTimeMillis() - inicio > 10 * 60 * 1000) {
+
+            if (System.currentTimeMillis() - inicio > 10 * 60 * 1_000L) {
                 System.err.println("\n[Leecher] Timeout: 10 minutos sin completar.");
                 break;
             }
         }
-        System.out.println();
+        System.out.println(); // salto de línea tras el \r
+    }
 
-        if (sesion.estaCompleto()) {
-            System.out.println("[Leecher] ✓ Descarga completa: " + destino);
+    /**
+     * Elimina un shutdown hook registrado previamente. Necesario al hacer
+     * la transición leecher → seeder para que la JVM no intente ejecutar
+     * el hook de la sesión ya detenida.
+     */
+    private static void quitarHook(Thread hook) {
+        try {
+            Runtime.getRuntime().removeShutdownHook(hook);
+        } catch (IllegalStateException ignorada) {
+            // La JVM ya está en proceso de shutdown; no es necesario hacer nada.
         }
-
-        sesion.detener();
     }
 }
