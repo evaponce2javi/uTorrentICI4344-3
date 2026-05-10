@@ -130,13 +130,13 @@ public class AplicacionCliente {
     // ------------------------------------------------------------------ //
 
     /**
-     * Descarga el archivo y, al completar, transiciona automáticamente
-     * a modo seeder para compartirlo con otros peers.
+     * Descarga el archivo y, al completar, pregunta al usuario si desea
+     * transicionar a modo seeder para compartirlo con otros peers.
      *
-     * Esto implementa transparencia de acceso: el nodo trata su propio
-     * archivo descargado con las mismas operaciones que usa un seeder
-     * original. No hay distinción en el código de la capa P2P entre
-     * "archivo propio" y "archivo descargado".
+     * Transparencia de acceso: si el usuario elige compartir, el archivo
+     * descargado se sirve con la misma abstracción que usa un seeder
+     * original (LectorBloques + SesionTorrent SEEDER). La capa P2P no
+     * distingue si el archivo es "propio" o "descargado".
      */
     private static void ejecutarLeecher(Scanner sc, ConfiguracionRed config,
                                         ClienteTracker clienteTracker,
@@ -190,23 +190,28 @@ public class AplicacionCliente {
         System.out.println("[Leecher] ✓ Descarga completa: " + destino);
 
         // Detiene la sesión de leecher: envía announce "detenido" al tracker
-        // y cierra el EscritorBloques (que ya fue sincronizado a disco por
+        // y cierra el EscritorBloques (ya sincronizado a disco por
         // verificarCompletado() antes del announce "completado").
         sesionLeecher.detener();
         quitarHook(hookDescarga);
 
-        // ── Transición transparente a modo Seeder ───────────────────────
+        // ── Decisión del usuario: compartir o terminar ───────────────────
         //
-        // El archivo descargado se abre ahora como LectorBloques, exactamente
-        // igual que lo haría un seeder original. La capa P2P (SesionPar,
-        // ServidorPar) no distingue si el archivo es "propio" o "descargado":
-        // ambos se sirven con la misma abstracción. Esto evidencia
-        // transparencia de acceso.
+        // No se fuerza la transición: el usuario controla su nodo.
+        // Si elige compartir, el archivo descargado se sirve con la misma
+        // abstracción que usa un seeder original, evidenciando transparencia
+        // de acceso: la capa P2P no distingue "archivo propio" de "descargado".
         System.out.println();
-        System.out.println("[Seeder] ── Activando modo seeder con el archivo descargado ──");
+        System.out.print("¿Deseas compartir el archivo con otros peers? (s/n): ");
+        String respuesta = sc.nextLine().trim().toLowerCase();
 
-        LectorBloques lector = new LectorBloques(destino);
-        iniciarYEsperarSeeder(sc, clienteTracker, miPeerId, puertoEscucha, meta, lector);
+        if (respuesta.equals("s") || respuesta.equals("si") || respuesta.equals("sí")) {
+            System.out.println("[Seeder] ── Activando modo seeder con el archivo descargado ──");
+            LectorBloques lector = new LectorBloques(destino);
+            iniciarYEsperarSeeder(sc, clienteTracker, miPeerId, puertoEscucha, meta, lector);
+        } else {
+            System.out.println("[Cliente] Sesión finalizada. El archivo está en: " + destino);
+        }
     }
 
     // ------------------------------------------------------------------ //
