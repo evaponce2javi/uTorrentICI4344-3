@@ -12,22 +12,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Implementa el algoritmo tit-for-tat de BitTorrent:
- *
- *  - 4 slots de unchoke regular: los peers que más bytes nos han enviado en la
- *    última ventana reciben "unchoke" y por tanto pueden pedirnos bloques.
- *  - 1 unchoke optimista rotativo cada 30 s: se elige aleatoriamente un peer
- *    chocado y se le da una oportunidad. Es el mecanismo de descubrimiento:
- *    así un peer recién conectado puede entrar al juego sin haber demostrado
- *    nada todavía.
- *
- * Fase de warm-up: al inicio no hay historial de tasas, así que los primeros
- * 4 peers que se conectan reciben unchoke gratuito hasta el primer recálculo
- * (a los 10 s). Es el comportamiento estándar de libtorrent y otros clientes
- * reales, conocido como "initial unchoke seed".
- *
- * Solo los peers en unchoked (o el optimisticPeer) reciben datos cuando piden
- * bloques: ProtocoloBitTorrent llama a estaUnchoked() antes de servir.
+ * Decide a quién darle prioridad: le abrimos el grifo a los 4 que mejor 
+ * nos comparten y a uno extra al azar para ver si tiene buena velocidad.
  */
 public class GestorChoke {
 
@@ -64,7 +50,7 @@ public class GestorChoke {
         conocidos.add(peerId);
         tasaDescarga.putIfAbsent(peerId, 0L);
         if (unchoked.size() < SLOTS_REGULARES) {
-            unchoked.add(peerId); // warm-up: slot inicial
+            unchoked.add(peerId);
         }
     }
 
@@ -89,15 +75,12 @@ public class GestorChoke {
 
         Set<String> nuevos = new HashSet<>();
         for (int i = 0; i < Math.min(SLOTS_REGULARES, ranking.size()); i++) {
-            // Solo entran al top quienes efectivamente aportaron bytes (>0).
-            // Antes del primer ciclo con datos reales, esto deja la lista vacía
-            // y los slots quedan disponibles para los siguientes warm-ups.
             if (ranking.get(i).getValue() > 0) nuevos.add(ranking.get(i).getKey());
         }
 
         unchoked.clear();
         unchoked.addAll(nuevos);
-        tasaDescarga.replaceAll((k, v) -> 0L); // reset de la ventana
+        tasaDescarga.replaceAll((k, v) -> 0L);
 
         System.out.println("[Choke] Unchoke regular (tit-for-tat): " + nuevos);
     }

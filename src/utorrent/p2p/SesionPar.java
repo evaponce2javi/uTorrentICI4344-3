@@ -27,33 +27,27 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Orquesta una conexión P2P completa con un peer remoto. Una instancia por
- * conexión, ejecutándose en su propio hilo del pool.
- *
- * Ciclo de vida (estándar BEP-3):
- *   1. Handshake bidireccional (validación del infoHash)
- *   2. Intercambio de bitfields
- *   3. "interested" si el peer remoto tiene piezas que nos interesan
- *   4. Esperar "unchoke" del peer remoto antes de pedir bloques
- *   5. Loop principal: SIEMPRE intenta leer el siguiente mensaje con timeout
- *      corto (5 s); en cada despertar evalúa si avanzar la descarga o cerrar.
- *      La salida solo ocurre por desconexión, descarga completa sin pedidos
- *      pendientes, o inactividad larga (90 s).
- *   6. Servir bloques al peer remoto si nos pide y está unchoked
- *
- * Manejo de fallos clasificado según Coulouris:
- *   - SocketException/EOFException → falla de proceso (peer cayó)
- *   - SocketTimeoutException        → falla de omisión (sin respuesta a tiempo)
- *   - hash inválido en pieza         → falla de valor bizantina
+ * Maneja la charla con otro usuario de principio a fin. Cada conexión corre 
+ * en su propio hilo y sigue estos pasos:
+ * 
+ * 1. Saludo inicial: Validamos que ambos estemos bajando lo mismo.
+ * 2. Intercambio de mapas: Vemos qué piezas tiene cada uno.
+ * 3. Interés: Le avisamos si tiene algo que nos sirve.
+ * 4. Espera: Aguardamos a que nos deje pedirle cosas.
+ * 5. Bucle principal: Leemos mensajes constantemente. Si no pasa nada en 
+ *    un buen rato o terminamos de bajar todo, cerramos la conexión.
+ * 6. Subida: Si él nos pide algo y tenemos permiso, le mandamos los bloques.
+ * 
+ * Si hay un error de red, el otro desaparece o nos manda datos corruptos, 
+ * cortamos la conexión y limpiamos todo.
  */
 public class SesionPar implements Runnable {
 
     private static final int TAMANO_BLOQUE = 16_384;
 
-    /** Timeout corto: despertamos cada 5 s para reevaluar tareas pendientes. */
+    /** Timeout corto*/
     private static final int TIMEOUT_LECTURA_MS = 5_000;
 
-    /** Si no hay tráfico útil en 90 s, cerramos la conexión. */
     private static final long INACTIVIDAD_MAX_MS = 90_000L;
 
     private final Socket socket;
@@ -108,8 +102,6 @@ public class SesionPar implements Runnable {
             recibirBitfield();
             evaluarInteresInicial();
 
-            // Unchoke proactivo durante warm-up: permite servir/pedir sin
-            // esperar el ciclo de 10 s del GestorChoke.
             if (gestorChoke.estaUnchoked(peerIdRemoto) && leEstoyChokeando) {
                 new MensajeUnchoke().escribirEn(salida);
                 leEstoyChokeando = false;
@@ -132,8 +124,6 @@ public class SesionPar implements Runnable {
         }
     }
 
-    /* ============================== handshake ============================== */
-
     private void ejecutarHandshake() throws IOException {
         if (entrante) {
             MensajeHandshake suyo = MensajeHandshake.leerDe(entrada);
@@ -155,8 +145,6 @@ public class SesionPar implements Runnable {
         gestorChoke.registrarPar(peerIdRemoto);
         System.out.println("[SesionPar] Handshake OK con " + abreviar(peerIdRemoto));
     }
-
-    /* ============================== bitfield ============================== */
 
     private void enviarBitfield() throws IOException {
         byte[] bf = gestorBitfield.construir(gestorPiezas);
@@ -187,18 +175,6 @@ public class SesionPar implements Runnable {
         }
     }
 
-    /* ============================== bucle principal ============================== */
-
-    /**
-     * Bucle principal corregido: SIEMPRE intenta leer el siguiente mensaje
-     * con timeout corto (5 s). En cada despertar:
-     *   - Si no estoy chokeado y tengo interés, intento avanzar la descarga.
-     *   - Si la descarga global terminó y el peer no me pide nada, cierro.
-     *   - Si llevo demasiado tiempo sin actividad útil, cierro.
-     *
-     * Esto evita el bug de la versión anterior, donde el seeder rompía el
-     * loop antes de leer el "interested" del leecher.
-     */
     private void buclePrincipal() throws IOException {
         while (activo.get() && !socket.isClosed()) {
 
@@ -212,11 +188,9 @@ public class SesionPar implements Runnable {
                 if (msg != null) {
                     procesarMensaje(msg);
                 }
-                // msg == null = keep-alive: también es señal de vida
             } catch (SocketTimeoutException ste) {
                 long inactivoMs = System.currentTimeMillis() - ultimaActividadMs;
 
-                // Cierre limpio: descarga completa y peer no me pide nada
                 if (gestorPiezas.estaCompleto() && piezaEnCurso == -1
                         && !elMeDijoInterested) {
                     System.out.println("[SesionPar] Sin trabajo pendiente con "
@@ -229,7 +203,6 @@ public class SesionPar implements Runnable {
                             + " ms con " + abreviar(peerIdRemoto) + "; cerrando.");
                     return;
                 }
-                // En cualquier otro caso: timeout normal, seguimos el bucle
             }
         }
     }
@@ -249,8 +222,6 @@ public class SesionPar implements Runnable {
                 .escribirEn(salida);
         siguienteOffsetEsperado += longitudBloque;
     }
-
-    /* ============================== despacho ============================== */
 
     private void procesarMensaje(MensajePeer msg) throws IOException {
         switch (msg.getId()) {
@@ -282,7 +253,6 @@ public class SesionPar implements Runnable {
 
     private void procesarUnchoke() throws IOException {
         elMeTieneChokeado = false;
-        // Avanzamos inmediatamente para no esperar al siguiente ciclo del bucle
         if (leDijeInterested) avanzarDescarga();
     }
 
@@ -350,8 +320,6 @@ public class SesionPar implements Runnable {
         }
     }
 
-    /* ============================== utilidades ============================== */
-
     public String getPeerIdRemoto() { return peerIdRemoto; }
 
     public void detener() { activo.set(false); }
@@ -362,7 +330,6 @@ public class SesionPar implements Runnable {
                 new MensajeHave(indicePieza).escribirEn(salida);
             }
         } catch (IOException e) {
-            // Peer caído
         }
     }
 

@@ -4,20 +4,16 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Encapsula la conversión entre {@code byte[]} bitfield y {@code Set<Integer>}
- * de índices de piezas presentes.
- *
- * El estándar BEP-3 exige bit-packing MSB-first: el bit más significativo del
- * primer byte representa la pieza 0. Esto NO coincide con el orden natural
- * en muchos lenguajes (que usan LSB-first), por lo que este código aísla la
- * complejidad para que ningún otro componente tenga que pensar en bits.
- *
- * Si totalPiezas no es múltiplo de 8, los bits sobrantes del último byte
- * deben ser 0 según el estándar; esta clase respeta esa convención.
+ * Traduce el "bitfield" (un array de bytes) a una lista de piezas que ya tenemos.
+ * BitTorrent empaqueta los bits de una forma un poco rara (el primer bit del primer 
+ * byte es la pieza 0). Esta clase se encarga de ese lío para que el resto del 
+ * programa solo vea números de pieza normales.
+ * También se asegura de ignorar los bits que sobran al final si el total de 
+ * piezas no es un múltiplo exacto de 8.
  */
+
 public class GestorBitfield {
 
-    /** Convierte un bitfield binario en el conjunto de índices de piezas presentes. */
     public Set<Integer> parsear(byte[] bitfield, int totalPiezas) {
         Set<Integer> resultado = new HashSet<>();
         for (int i = 0; i < totalPiezas; i++) {
@@ -32,7 +28,6 @@ public class GestorBitfield {
 
     /**
      * Construye el bitfield binario a partir de los estados del GestorPiezas.
-     * El tamaño del arreglo es ceil(totalPiezas / 8).
      */
     public byte[] construir(GestorPiezas gestor) {
         int total = gestor.totalPiezas();
@@ -41,8 +36,6 @@ public class GestorBitfield {
             if (gestor.tienePieza(i)) {
                 int byteIdx = i / 8;
                 int bitIdx  = 7 - (i % 8);
-                // El cast a (byte) es necesario porque el resultado del OR
-                // sobre bytes en Java se promueve a int.
                 bf[byteIdx] = (byte) (bf[byteIdx] | (1 << bitIdx));
             }
         }

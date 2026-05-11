@@ -10,23 +10,8 @@ import utorrent.utils.CalculadorHash;
 import utorrent.utils.EscritorBloques;
 
 /**
- * Ensambla bloques de 16 KB en piezas completas, verifica el hash SHA-1,
- * y delega la escritura a disco si la verificación pasa.
- *
- * Estructura interna: un mapa concurrente {indicePieza → BufferEnsamblado},
- * donde cada BufferEnsamblado acumula los bloques que ha ido recibiendo
- * de uno o más peers para una misma pieza.
- *
- * Cuando el buffer está completo, ensambla los bytes en orden, calcula el
- * SHA-1 y lo compara con el esperado del torrent. Si es válido, escribe
- * en disco y retorna true; si es inválido, retorna false (el llamador
- * debe re-encolar la pieza con GestorPiezas.reencolar()).
- *
- * Justificación de la concurrencia: distintos peers pueden estar enviando
- * bloques de DISTINTAS piezas en paralelo, y un mismo peer puede partir
- * los bloques de su pieza entre varios sockets. El ConcurrentHashMap
- * más el lock por pieza permiten paralelismo sin riesgo de race conditions
- * en el ensamblado.
+ * Representa un pedacito de una pieza. BitTorrent los baja de a 16 KB para
+ * que podamos pedir partes de una misma pieza a distintos usuarios a la vez.
  */
 public class EnsambladorPiezas {
 
@@ -52,9 +37,6 @@ public class EnsambladorPiezas {
         int indicePieza = bloque.getIndicePieza();
         int longitudReal = gestorPiezas.longitudDePieza(indicePieza);
 
-        // computeIfAbsent es atómico: dos hilos no pueden crear dos BufferEnsamblado
-        // distintos para la misma pieza. Una vez creado, la mutación interna se
-        // protege con el lock del BufferEnsamblado.
         BufferEnsamblado buffer = buffers.computeIfAbsent(
                 indicePieza, k -> new BufferEnsamblado(longitudReal));
 
@@ -68,12 +50,11 @@ public class EnsambladorPiezas {
         byte[] hashEsperado = gestorPiezas.hashEsperado(indicePieza);
 
         if (!CalculadorHash.verificar(datosPieza, hashEsperado)) {
-            // Falla de valor (Coulouris): contenido bizantino
             buffers.remove(indicePieza);
             return ResultadoBloque.HASH_INVALIDO;
         }
 
-        // Hash válido: escribimos en disco en el offset absoluto correcto
+        // Hash válido
         long offsetGlobal = (long) indicePieza * longitudPieza;
         escritor.escribir(offsetGlobal, datosPieza);
         gestorPiezas.marcarCompletada(indicePieza);
@@ -82,7 +63,6 @@ public class EnsambladorPiezas {
         return ResultadoBloque.PIEZA_VERIFICADA;
     }
 
-    /** Limpia el buffer de una pieza. Llamado al re-encolar tras fallo. */
     public void descartarPieza(int indicePieza) {
         buffers.remove(indicePieza);
     }
@@ -92,8 +72,6 @@ public class EnsambladorPiezas {
         PIEZA_VERIFICADA,
         HASH_INVALIDO
     }
-
-    /* ------------------ buffer interno por pieza ------------------ */
 
     private static class BufferEnsamblado {
         private final int longitudPieza;
@@ -109,7 +87,6 @@ public class EnsambladorPiezas {
             lock.lock();
             try {
                 if (bloquesPorOffset.containsKey(bloque.getOffset())) {
-                    // Bloque duplicado: lo ignoramos sin contar bytes dos veces
                     return bytesAcumulados >= longitudPieza;
                 }
                 bloquesPorOffset.put(bloque.getOffset(), bloque.getDatos());

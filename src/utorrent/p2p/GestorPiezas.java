@@ -9,21 +9,15 @@ import utorrent.modelos.EstadoPieza;
 import utorrent.modelos.MetadatosTorrent;
 
 /**
- * Coordina el estado de las piezas durante una sesión de descarga.
- *
- * Estados (ver {@link EstadoPieza}):
- *   PENDIENTE  → EN_CURSO  (selección atómica al asignar pieza a un peer)
- *   EN_CURSO   → COMPLETADA (cuando se ensambla y verifica el hash)
- *   EN_CURSO   → PENDIENTE  (re-encolado por falla de valor o crash de peer)
- *
- * La transición PENDIENTE → EN_CURSO se hace con compareAndSet sobre
- * AtomicReferenceArray, garantizando que dos hilos PeerConnectionHandler
- * no reciban la misma pieza incluso si la solicitan al mismo tiempo.
- *
- * Política de selección: ALEATORIA entre las piezas faltantes que el peer
- * remoto tiene disponibles. El enunciado indica que para esta versión
- * académica esto es aceptable (rarest-first es opcional).
+ * Controla qué piezas faltan y en qué estado están (bajando, listas o pendientes).
+ * 
+ * Se encarga de que dos hilos no intenten bajar la misma pieza a la vez. 
+ * Si un usuario se desconecta o la pieza llega mal, la vuelve a marcar 
+ * como pendiente para pedirla de nuevo.
+ * Para elegir cuál bajar, simplemente agarra una al azar de las que 
+ * tenga el otro usuario.
  */
+
 public class GestorPiezas {
 
     private final MetadatosTorrent meta;
@@ -38,15 +32,14 @@ public class GestorPiezas {
         }
     }
 
-    /**
-     * Selecciona aleatoriamente una pieza pendiente que el peer remoto tenga.
-     * Marca la pieza como EN_CURSO atómicamente; si otro hilo logró marcarla
-     * antes, se intenta con la siguiente candidata.
+        /**
+     * Busca una pieza que nos falte y que el otro usuario tenga. 
+     * La marca como "ocupada" para que nadie más la pida; si justo otro hilo 
+     * nos ganó de mano, sigue buscando la siguiente.
      *
-     * @return índice de la pieza seleccionada, o -1 si no hay candidatas útiles
+     * @return el número de pieza para bajar, o -1 si no hay nada que nos sirva.
      */
     public int seleccionarSiguientePieza(Set<Integer> piezasDelPeer) {
-        // Construimos la lista de candidatas (piezas pendientes que tiene el peer)
         List<Integer> candidatas = new ArrayList<>();
         for (int idx : piezasDelPeer) {
             if (estados.get(idx) == EstadoPieza.PENDIENTE) {
@@ -55,9 +48,6 @@ public class GestorPiezas {
         }
         if (candidatas.isEmpty()) return -1;
 
-        // Selección aleatoria: barajamos y vamos intentando hasta encontrar una
-        // que aún esté PENDIENTE al momento del compareAndSet (otro hilo puede
-        // habérnosla "robado" entre la lectura y la escritura).
         Collections.shuffle(candidatas, rng);
         for (int idx : candidatas) {
             if (estados.compareAndSet(idx, EstadoPieza.PENDIENTE, EstadoPieza.EN_CURSO)) {
@@ -67,16 +57,15 @@ public class GestorPiezas {
         return -1;
     }
 
-    /** Marca como completada. Solo debe llamarse tras verificación SHA-1 exitosa. */
+    /** Marca como completada. Solo se llama tras verificación SHA-1. */
     public void marcarCompletada(int indicePieza) {
         estados.set(indicePieza, EstadoPieza.COMPLETADA);
     }
 
     /**
-     * Re-encola una pieza fallida. Causas posibles:
-     *  - Falla de valor: hash SHA-1 incorrecto
-     *  - Crash del peer: SocketException antes de completar el ensamblado
-     *  - Timeout en la transferencia
+     * Pone una pieza otra vez en la lista de pendientes. 
+     * Se usa si el hash dio mal, si se cortó la conexión o si 
+     * el otro usuario tardó demasiado en responder.
      */
     public void reencolar(int indicePieza) {
         estados.compareAndSet(indicePieza, EstadoPieza.EN_CURSO, EstadoPieza.PENDIENTE);

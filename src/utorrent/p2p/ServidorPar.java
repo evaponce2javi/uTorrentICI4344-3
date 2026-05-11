@@ -13,15 +13,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Acepta conexiones P2P entrantes en el puerto local del peer.
- *
- * Patrón: ServerSocket en bucle accept() + ExecutorService con un hilo por
- * conexión entrante. Cada socket aceptado se envuelve en una SesionPar que
- * gestiona el ciclo de vida P2P completo.
- *
- * Las sesiones activas se mantienen en una CopyOnWriteArrayList para que
- * SesionTorrent pueda iterar sobre ellas (por ejemplo, broadcastear "have"
- * al completar una pieza) sin riesgo de ConcurrentModificationException.
+ * Se queda escuchando para aceptar a otros usuarios que quieran conectarse.
+ * 
+ * Por cada conexión nueva, lanza un hilo para manejarla de forma independiente. 
+ * Guarda todas estas sesiones en una lista segura para que podamos avisarles 
+ * a todos a la vez cuando terminamos de bajar una pieza, sin que el programa 
+ * explote si alguien se desconecta en ese momento.
  */
 public class ServidorPar {
 
