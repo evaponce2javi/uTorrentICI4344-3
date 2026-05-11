@@ -4,20 +4,15 @@ import java.io.Serializable;
 import java.util.Objects;
 
 /**
- * Información de contacto de un peer en el swarm.
- *
- * peerId es una cadena de 20 bytes (estándar BitTorrent) usada en el handshake
- * para que dos peers se identifiquen mutuamente sin depender de la IP.
- * Esto sostiene la transparencia de ubicación: el TorrentManager nunca trabaja
- * con IPs directamente, solo con peerIds resueltos por el Tracker.
+ * Datos básicos para conectarse a otro usuario (peer) en la red.
  */
 public class InfoPar implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private final String peerId;
-    private final String direccionIp;
-    private final int puerto;
+    private final String peerId; //ID unico de 20 bytes del cliente
+    private final String direccionIp; // su IP actual
+    private final int puerto; // Puerto donde escucha conexiones
 
     public InfoPar(String peerId, String direccionIp, int puerto) {
         this.peerId = peerId;

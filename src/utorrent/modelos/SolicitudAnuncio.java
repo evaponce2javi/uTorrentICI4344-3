@@ -3,13 +3,7 @@ package utorrent.modelos;
 import java.io.Serializable;
 
 /**
- * Mensaje que un peer envía al Tracker en cada announce.
- *
- * El campo evento sigue el estándar BitTorrent:
- *  - "iniciado":   primer announce, peer entra al swarm
- *  - "completado": peer terminó la descarga (ahora es seeder)
- *  - "detenido":   peer se desconecta limpiamente
- *  - "actualizado": announce periódico de mantenimiento
+ * El reporte que le mandamos al Tracker para decirle cómo va nuestra descarga.
  */
 public class SolicitudAnuncio implements Serializable {
 

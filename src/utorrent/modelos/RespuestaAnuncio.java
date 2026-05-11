@@ -4,13 +4,7 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * Respuesta del Tracker a un announce.
- *
- *  - exito:      si la operación fue aceptada
- *  - mensaje:    descripción legible (útil para errores: rate limit, hash desconocido)
- *  - intervalo:  segundos hasta el próximo announce que el peer debe enviar
- *  - pares:      lista de peers actualmente conectados al swarm (excluye al solicitante)
- *  - metadatos:  enviado solo en la consulta por nombre de archivo (búsqueda simplificada)
+ * Lo que nos responde el servidor (tracker) cuando le avisamos que estamos online.
  */
 public class RespuestaAnuncio implements Serializable {
 

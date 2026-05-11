@@ -1,17 +1,10 @@
 package utorrent.modelos;
 
 /**
- * Estados posibles de una pieza durante la descarga.
- *
- *  - PENDIENTE: aún no se ha solicitado a ningún peer.
- *  - EN_CURSO:  algún hilo PeerConnectionHandler la está descargando.
- *  - COMPLETADA: pieza recibida, hash SHA-1 verificado, escrita en disco.
- *
- * La transición PENDIENTE → EN_CURSO debe ser atómica para evitar que dos
- * hilos pidan la misma pieza simultáneamente (race condition).
+ * Los tres estados por los que pasa una pieza mientras se descarga.
  */
 public enum EstadoPieza {
-    PENDIENTE,
-    EN_CURSO,
-    COMPLETADA
+    PENDIENTE, //todavia no se ha pedido a nadie
+    EN_CURSO, //alguien la esta bajando ahora
+    COMPLETADA // ya esta verificada y guardada en disco
 }

@@ -4,13 +4,8 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * Metadatos de un torrent. Equivale al contenido de un archivo .torrent real,
- * pero generado en memoria por el Seeder a partir del archivo a compartir.
- *
- * Campos clave del estándar BitTorrent (BEP-3):
- *  - infoHash: SHA-1 (20 bytes) del diccionario "info"; identifica el torrent en toda la red
- *  - hashesDePiezas: lista con el SHA-1 de cada pieza, en orden
- *  - longitudPieza: tamaño en bytes de cada pieza (la última puede ser menor)
+ * Es básicamente el archivo .torrent. Tiene toda la info necesaria 
+ * para saber qué estamos bajando y cómo validarlo.
  */
 public class MetadatosTorrent implements Serializable {
 
@@ -50,9 +45,8 @@ public class MetadatosTorrent implements Serializable {
     }
 
     /**
-     * Devuelve el tamaño real de la pieza en el índice dado.
-     * La última pieza puede ser menor que longitudPieza si el archivo no
-     * es múltiplo exacto del tamaño de pieza.
+     * Calcula cuánto mide una pieza. 
+     * Ojo con la última, que suele ser más chica.
      */
     public int longitudPiezaEn(int indice) {
         if (indice == totalPiezas() - 1) {
