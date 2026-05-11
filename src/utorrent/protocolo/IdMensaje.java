@@ -2,12 +2,6 @@ package utorrent.protocolo;
 
 /**
  * Identificadores de mensajes del protocolo BitTorrent (BEP-3).
- *
- * Cada mensaje (excepto handshake y keep-alive) tiene la estructura:
- *   [4 bytes: longitud][1 byte: id][N bytes: payload]
- *
- * El handshake es un caso especial de 68 bytes con formato propio.
- * El keep-alive es simplemente <4 bytes: longitud=0>, sin id ni payload.
  */
 public final class IdMensaje {
 

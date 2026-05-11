@@ -6,18 +6,6 @@ import java.io.IOException;
 
 /**
  * Solicitud de un bloque al peer remoto.
- *
- * Formato:
- *   [4 bytes: longitud=13][1 byte: id=6]
- *   [4 bytes: índice de pieza][4 bytes: begin (offset dentro de la pieza)]
- *   [4 bytes: longitud del bloque solicitado, típicamente 16 384]
- *
- * Importante: "begin" es el offset DENTRO DE LA PIEZA, no dentro del archivo.
- * El offset absoluto se calcula como: índicePieza * longitudPieza + begin.
- *
- * Por convención, longitud nunca debe exceder 16 KB. Algunos clientes
- * cierran la conexión si reciben requests con longitudes mayores como
- * defensa contra ataques de amplificación.
  */
 public class MensajeRequest extends MensajePeer {
 

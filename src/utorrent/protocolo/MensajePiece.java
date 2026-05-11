@@ -6,14 +6,6 @@ import java.io.IOException;
 
 /**
  * Respuesta a un MensajeRequest: contiene los bytes del bloque pedido.
- *
- * Formato:
- *   [4 bytes: longitud=9+X][1 byte: id=7]
- *   [4 bytes: índice de pieza][4 bytes: begin][X bytes: datos del bloque]
- *
- * El índice y el begin deben coincidir con los del request original. Si no,
- * el receptor debe descartar el mensaje (puede ser un piece que llega tarde
- * después de un cancel).
  */
 public class MensajePiece extends MensajePeer {
 

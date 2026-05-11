@@ -5,11 +5,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
- * "Acabo de completar la pieza con índice X". Permite a otros peers actualizar
- * de forma incremental su mapa de qué piezas tiene el remitente.
- *
- * Formato:
- *   [4 bytes: longitud=5][1 byte: id=4][4 bytes: índice de pieza]
+ * Permite a otros peers actualizar de forma incremental su mapa de qué piezas 
+ * tiene el remitente.
  */
 public class MensajeHave extends MensajePeer {
 
