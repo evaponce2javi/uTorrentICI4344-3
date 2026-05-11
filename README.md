@@ -26,6 +26,19 @@ mkdir -p archivos-a-compartir
 mkdir -p descargas
 ```
 
+
+### Configuración del tracker
+
+Antes de ejecutar el cliente, crea un archivo `tracker.properties` en el directorio raíz del proyecto con la IP y puerto de la máquina que corre el tracker:
+
+```properties
+tracker.host=192.168.1.10
+tracker.port=6969
+```
+
+Este archivo está excluido del repositorio (ver `.gitignore`) para que cada integrante configure su propio entorno. Como referencia, usa el archivo `tracker.properties.example` incluido en el proyecto. Si `tracker.properties` no existe, el cliente pedirá los datos por consola al momento de ejecutarse.
+
+
 ### Paso 2 — Compilar todo el proyecto
 Desde la raíz del proyecto (la carpeta que contiene src/ y out/):
 
