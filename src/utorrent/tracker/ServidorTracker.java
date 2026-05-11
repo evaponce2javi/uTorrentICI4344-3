@@ -10,15 +10,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Servidor centralizado que coordina el descubrimiento de peers (F2 del proyecto).
- *
- * Patrón: un ServerSocket aceptando conexiones en bucle + ExecutorService con
- * pool fijo de hilos (uno por cliente entrante). Demuestra el patrón clásico
- * de servidor concurrente multi-hilo.
- *
- * Recursos compartidos:
- *  - registro:    protegido por ConcurrentHashMap (lecturas sin bloqueo)
- *  - serverSocket: cerrado limpiamente en detener() para desbloquear accept()
+ * Servidor centralizado que coordina el descubrimiento de peers.
  */
 public class ServidorTracker {
 
@@ -53,21 +45,17 @@ public class ServidorTracker {
                 puerto, RegistroPares.MAX_PARES_POR_IP_DEFECTO,
                 ((java.util.concurrent.ThreadPoolExecutor) poolHilos).getMaximumPoolSize());
 
-        // Tarea periódica: limpiar ventana anti-Sybil cada 60 s
         mantenimiento.scheduleAtFixedRate(registro::reiniciarVentana,
                 60, 60, TimeUnit.SECONDS);
 
         while (ejecutando) {
             try {
                 Socket cliente = socketServidor.accept();
-                // Cada cliente entrante se delega al pool: el accept() vuelve
-                // inmediatamente a aceptar la siguiente conexión.
                 poolHilos.submit(new ManejadorAnuncio(cliente, registro));
             } catch (IOException e) {
                 if (ejecutando) {
                     System.err.println("[Tracker] Error aceptando conexión: " + e.getMessage());
                 }
-                // Si !ejecutando, es por detener() y es esperado.
             }
         }
     }
@@ -82,10 +70,6 @@ public class ServidorTracker {
         System.out.println("[Tracker] Detenido.");
     }
 
-    /**
-     * Punto de entrada del Tracker. Pide el puerto al usuario para evitar
-     * hardcoding (cumple regla "Cero Hardcoding" del enunciado).
-     */
     public static void main(String[] args) {
         try (Scanner sc = new Scanner(System.in)) {
             System.out.println("=== Servidor Tracker BitTorrent ===");

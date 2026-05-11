@@ -11,15 +11,6 @@ import utorrent.modelos.MetadatosTorrent;
 
 /**
  * Registro concurrente de peers y torrents conocidos por el Tracker.
- *
- * Estructura:
- *   - swarms:    infoHashHex -> (peerId -> InfoPar)
- *   - porNombre: nombreArchivo -> infoHashHex   (búsqueda por nombre del enunciado)
- *   - metadatos: infoHashHex -> MetadatosTorrent
- *
- * Toda mutación es thread-safe vía ConcurrentHashMap. Adicionalmente, el
- * método registrar() aplica rate limiting por IP en una ventana de 60 s,
- * mitigando ataque Sybil.
  */
 public class RegistroPares {
 
@@ -60,8 +51,7 @@ public class RegistroPares {
     /**
      * Registra solo los metadatos, sin tocar el swarm. Lo llama el seeder
      * en su segunda conexión para publicar los hashes y permitir búsqueda
-     * por nombre. NO aplica rate limit porque el peer ya entró en su
-     * primer announce.
+     * por nombre.
      */
     public void registrarMetadatosSolo(MetadatosTorrent meta) {
         if (meta == null) return;

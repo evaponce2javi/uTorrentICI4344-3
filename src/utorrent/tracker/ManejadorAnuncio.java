@@ -13,16 +13,7 @@ import java.util.List;
 
 /**
  * Maneja una única conexión entrante al Tracker. Se ejecuta en un hilo del
- * ExecutorService del ServidorTracker, cumpliendo el patrón "un hilo por cliente".
- *
- * Tipos de mensajes soportados:
- *   - SolicitudAnuncio con evento "iniciado"/"actualizado"/"completado"/"detenido":
- *     announce estándar; el peer entra/permanece/sale del swarm.
- *   - SolicitudAnuncio con evento "consulta": búsqueda por nombre del enunciado.
- *     El peer NO entra al swarm; solo recibe el infoHash y los metadatos.
- *   - MetadatosTorrent (objeto suelto): segundo mensaje del seeder al hacer
- *     publicarSeed. Registra los metadatos para que futuras consultas por
- *     nombre puedan recuperarlos.
+ * ExecutorService del ServidorTracker, cumpliendo el patrón de "hilo por cliente".
  */
 public class ManejadorAnuncio implements Runnable {
 

@@ -11,12 +11,6 @@ import utorrent.modelos.SolicitudAnuncio;
 
 /**
  * Cliente del Tracker. Encapsula los announce y la consulta por nombre.
- *
- * Política de fallos:
- *   - Connect timeout: 5 s por intento
- *   - Read timeout:   10 s por intento
- *   - Reintentos:     3 con backoff exponencial 5 s / 15 s / 30 s
- *   - Tras 3 fallos:  el llamador debe activar fallback a bootstrap peers
  */
 public class ClienteTracker {
 
@@ -42,9 +36,7 @@ public class ClienteTracker {
     }
 
     /**
-     * Announce inicial de un Seeder. Se hace en dos pasos:
-     *   1) announce normal "iniciado" para entrar al swarm
-     *   2) envío de los metadatos para registro nombre→infoHash
+     * Announce inicial de un Seeder.
      */
     public RespuestaAnuncio publicarSeed(MetadatosTorrent meta, String peerId,
                                          int puertoEscucha) {
@@ -68,8 +60,6 @@ public class ClienteTracker {
                 0, 0, 0, "detenido", null);
         intentarUnaVez(detenido);
     }
-
-    /* --------------------------- internos --------------------------- */
 
     private RespuestaAnuncio enviarSolicitudConReintentos(SolicitudAnuncio solicitud, String op) {
         return enviarConReintentos(() -> intentarUnaVez(solicitud), op);
