@@ -11,11 +11,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
 /**
- * Inicia conexiones P2P salientes hacia peers conocidos por el tracker.
- *
- * Mantiene un mapa de peerIds con los que ya hay conexión activa, evitando
- * duplicar conexiones a un mismo peer (puede pasar si el tracker lo lista
- * varias veces o si el peer ya nos había conectado a nosotros primero).
+ * Se encarga de conectar con otros usuarios que nos pasó el tracker.
+ * 
+ * Lleva un registro de los IDs para no conectar dos veces al mismo 
+ * usuario (por ejemplo, si el tracker lo repite o si él ya se 
+ * conectó con nosotros antes).
  */
 public class ClientePar {
 

@@ -23,14 +23,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Coordinador de una sesión torrent completa, sea como seeder o como leecher.
- *
- * Responsabilidades:
- *   - Construir y conectar todos los componentes (tracker, P2P, ensamblador, choke)
- *   - Ejecutar el primer announce y procesar la lista de peers
- *   - Lanzar el ServidorPar y conectar a los peers descubiertos
- *   - Hacer announces periódicos de mantenimiento
- *   - Detectar la descarga completa y enviar el announce "completado"
- *   - Cierre limpio: announce "detenido", cerrar sockets, sincronizar a disco
  */
 public class SesionTorrent {
 
