@@ -8,13 +8,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Escritura aleatoria de bloques en un archivo de salida. Usado por el Leecher.
- *
- * Al inicio (reservarEspacio) crea un archivo vacío del tamaño total exacto
- * mediante setLength(); esto evita la fragmentación en disco y permite
- * escribir bloques en cualquier orden sin preocuparse por extender el archivo.
- *
- * Igual que LectorBloques, encapsulamos seek+write bajo un ReentrantLock
- * porque RandomAccessFile no es thread-safe.
  */
 public class EscritorBloques implements AutoCloseable {
 
@@ -27,12 +20,9 @@ public class EscritorBloques implements AutoCloseable {
         Files.createDirectories(destino.getParent() != null
                 ? destino.getParent() : Path.of("."));
         this.raf = new RandomAccessFile(destino.toFile(), "rw");
-        // Reserva el espacio total: el archivo queda creado con el tamaño
-        // exacto, lleno de ceros. Permite escrituras aleatorias seguras.
         this.raf.setLength(longitudTotal);
     }
 
-    /** Escribe {@code datos} en el {@code offsetGlobal} del archivo. */
     public void escribir(long offsetGlobal, byte[] datos) throws IOException {
         lock.lock();
         try {
@@ -43,7 +33,6 @@ public class EscritorBloques implements AutoCloseable {
         }
     }
 
-    /** Fuerza la sincronización a disco: importante al completar la descarga. */
     public void sincronizar() throws IOException {
         lock.lock();
         try { raf.getFD().sync(); }

@@ -11,21 +11,6 @@ import java.util.Scanner;
 
 /**
  * Centraliza las preguntas de configuración al usuario por consola.
- *
- * Transparencia de ubicación — orden de resolución para IP y puerto del tracker:
- *   1. Variables de entorno  TRACKER_HOST / TRACKER_PORT
- *   2. Archivo tracker.properties en el directorio de trabajo
- *   3. Entrada interactiva por consola (fallback)
- *
- * Gracias a este mecanismo, el usuario (o el entorno de despliegue) no necesita
- * conocer ni escribir la dirección del tracker para ejecutar el cliente; basta
- * con que esté declarada en el entorno o en el archivo de configuración.
- * Esto evidencia transparencia de ubicación: el recurso (tracker) se descubre
- * sin que el código de aplicación codifique su dirección física.
- *
- * Formato de tracker.properties:
- *   tracker.host=192.168.1.10
- *   tracker.port=6969
  */
 public class ConfiguracionRed {
 
@@ -41,16 +26,7 @@ public class ConfiguracionRed {
         this.props = cargarPropiedades();
     }
 
-    // ------------------------------------------------------------------ //
-    //  Resolución de host y puerto del tracker                            //
-    // ------------------------------------------------------------------ //
-
-    /**
-     * Devuelve la IP del tracker, resolviéndola en orden de prioridad:
-     * variable de entorno → archivo de propiedades → consola.
-     */
     public String pedirIpTracker() {
-        // 1. Variable de entorno
         String host = System.getenv(ENV_TRACKER_HOST);
         if (estaDefinido(host)) {
             System.out.println("[Config] Tracker host desde variable de entorno ("
@@ -58,7 +34,6 @@ public class ConfiguracionRed {
             return host.trim();
         }
 
-        // 2. Archivo tracker.properties
         String propHost = props.getProperty("tracker.host");
         if (estaDefinido(propHost)) {
             System.out.println("[Config] Tracker host desde " + ARCHIVO_CONFIG
@@ -66,7 +41,6 @@ public class ConfiguracionRed {
             return propHost.trim();
         }
 
-        // 3. Fallback: consola
         System.out.print("IP del Tracker: ");
         return sc.nextLine().trim();
     }
@@ -75,7 +49,6 @@ public class ConfiguracionRed {
      * Devuelve el puerto del tracker, resolviéndolo en el mismo orden de prioridad.
      */
     public int pedirPuertoTracker() {
-        // 1. Variable de entorno
         String portEnv = System.getenv(ENV_TRACKER_PORT);
         if (estaDefinido(portEnv)) {
             try {
@@ -89,7 +62,6 @@ public class ConfiguracionRed {
             }
         }
 
-        // 2. Archivo tracker.properties
         String propPort = props.getProperty("tracker.port");
         if (estaDefinido(propPort)) {
             try {
@@ -102,14 +74,9 @@ public class ConfiguracionRed {
             }
         }
 
-        // 3. Fallback: consola
         System.out.print("Puerto del Tracker: ");
         return Integer.parseInt(sc.nextLine().trim());
     }
-
-    // ------------------------------------------------------------------ //
-    //  Resto de parámetros (solo consola; no aplica transparencia aquí)  //
-    // ------------------------------------------------------------------ //
 
     public int pedirPuertoEscuchaLocal() {
         System.out.print("Puerto local de escucha P2P: ");
@@ -130,10 +97,6 @@ public class ConfiguracionRed {
         System.out.print("Carpeta de destino: ");
         return sc.nextLine().trim();
     }
-
-    // ------------------------------------------------------------------ //
-    //  Internos                                                            //
-    // ------------------------------------------------------------------ //
 
     private Properties cargarPropiedades() {
         Properties p = new Properties();

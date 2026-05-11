@@ -6,10 +6,6 @@ import java.nio.file.Path;
 
 /**
  * Validaciones de tamaño y existencia para archivos a compartir.
- *
- * El enunciado pide rechazar archivos > 50 MB para evitar problemas de
- * memoria en una prueba académica. Esta validación vive en una clase
- * separada para poder ajustar el límite sin tocar la lógica de seeding.
  */
 public class LimitesArchivo {
 
@@ -17,12 +13,6 @@ public class LimitesArchivo {
 
     private LimitesArchivo() { /* utilidad */ }
 
-    /**
-     * Verifica que el archivo exista, sea legible y esté dentro del límite.
-     *
-     * @throws IOException si no existe o no es legible
-     * @throws IllegalArgumentException si supera el límite
-     */
     public static void validarParaSeeding(Path archivo) throws IOException {
         if (!Files.exists(archivo)) {
             throw new IOException("El archivo no existe: " + archivo);

@@ -8,12 +8,6 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Lectura aleatoria de bloques desde un archivo. Usado por el Seeder para
  * responder mensajes "request" sin cargar el archivo completo en memoria.
- *
- * RandomAccessFile no es thread-safe en Java, y múltiples PeerConnectionHandler
- * pueden pedir bloques distintos al mismo tiempo. Por eso encapsulamos
- * seek+read bajo un ReentrantLock: garantiza que cada lectura sea atómica
- * sin perder concurrencia entre peers (cada peer espera su turno de IO,
- * pero no bloquea al socket de los demás).
  */
 public class LectorBloques implements AutoCloseable {
 
@@ -26,13 +20,6 @@ public class LectorBloques implements AutoCloseable {
         this.longitudTotal = raf.length();
     }
 
-    /**
-     * Lee {@code longitud} bytes desde el {@code offsetGlobal} del archivo.
-     *
-     * @param offsetGlobal posición absoluta en el archivo (no dentro de la pieza)
-     * @param longitud cantidad de bytes a leer
-     * @return arreglo con los bytes leídos (puede ser más corto si se llega al EOF)
-     */
     public byte[] leer(long offsetGlobal, int longitud) throws IOException {
         if (offsetGlobal < 0 || offsetGlobal >= longitudTotal) {
             throw new IOException("Offset fuera de rango: " + offsetGlobal);
