@@ -2,7 +2,7 @@
 
 ## Paso solo 1 vez:
 
-### Paso 0 — Verificar que tienes Java instalado
+### Paso 0 — Verificar que Java está instalado.
 En cualquier terminal, ejecuta:
 ```
 java -version
@@ -12,7 +12,12 @@ javac -versión
 Necesitas JDK 11 o superior. Si solo aparece java -version pero no javac, tienes solo el JRE; instala el JDK desde adoptium.net o usa sudo apt install default-jdk en Linux.
 Paso 1 — Crear la estructura de carpetas y archivos
 Ubícate en la carpeta donde quieras tener el proyecto (por ejemplo ~/proyectos/utorrent) y crea las carpetas:
-Linux/Mac:
+
+**Windows PowerShell:**
+```
+New-Item -ItemType Directory -Force -Path src\utorrent\app, src\utorrent\p2p, src\utorrent\tracker, src\utorrent\modelos, src\utorrent\utils, src\utorrent\protocolo, out, archivos-a-compartir, descargas
+```
+**Linux/Mac:**
 
 ```
 mkdir -p src/utorrent/{app,p2p,tracker,modelos,utils,protocolo}
@@ -21,30 +26,18 @@ mkdir -p archivos-a-compartir
 mkdir -p descargas
 ```
 
-Windows PowerShell:
-```
-New-Item -ItemType Directory -Force -Path src\utorrent\app, src\utorrent\p2p, src\utorrent\tracker, src\utorrent\modelos, src\utorrent\utils, src\utorrent\protocolo, out, archivos-a-compartir, descargas
-```
-
-Luego copia cada archivo .java que te entregué a su carpeta correspondiente. Verifica que el package declarado en la primera línea de cada archivo coincida con la carpeta. Por ejemplo:
-
-- src/utorrent/app/AplicacionCliente.java → debe empezar con package utorrent.app;
-- src/utorrent/p2p/SesionPar.java → debe empezar con package utorrent.p2p;
-- src/utorrent/tracker/ServidorTracker.java → debe empezar con package utorrent.tracker;
-
 ### Paso 2 — Compilar todo el proyecto
 Desde la raíz del proyecto (la carpeta que contiene src/ y out/):
-Linux/Mac:
-```
-javac -d out $(find src -name "*.java")
-```
 
-Windows PowerShell:
+**Windows PowerShell:**
 ```
 javac -d out (Get-ChildItem -Recurse -Filter *.java -Path src | ForEach-Object { $_.FullName })
 ```
-
-Windows CMD:
+**Linux/Mac:**
+```
+javac -d out $(find src -name "*.java")
+```
+**Windows CMD:**
 ```
 dir /s /b src\*.java > sources.txt
 javac -d out @sources.txt
@@ -54,14 +47,14 @@ javac -d out @sources.txt
 Si todo está bien, no debe imprimir nada (o solo un par de warnings sobre serial, que son inofensivos). Si imprime errores, revisa que cada archivo tenga el package correcto y que esté en su carpeta correspondiente.
 
 ## Ejecución del sistema
-Ahora abres 3 terminales separadas, todas ubicadas en la raíz del proyecto. El orden importa: tracker primero, después seeder, finalmente leecher.
+Ahora abres 3 terminales separadas, todas ubicadas en la raíz del proyecto. El orden importa: tracker primero, después seeder, finalmente leecher. También puede ser probado en distintos computadores: Para ello hay que verificar que en configuraciones de Wi-Fi el tipo de Red sea Privada. Para ver la IP, hay que abrir una terminal cmd y escribir *ipconfig*, y seleccionar la IPv4.
 
 ### Terminal 1 — Servidor Tracker
 ```
 java -cp out utorrent.tracker.ServidorTracker
 ```
 
-El programa pedirá tres parámetros. Responde así (presiona ENTER después de cada uno):
+El programa pedirá parámetros. Responde así (presiona ENTER después de cada uno):
 
 ```
 === Servidor Tracker BitTorrent ===
@@ -83,9 +76,9 @@ Esta terminal queda bloqueada con el tracker corriendo. No la cierres mientras h
 
 #### Preparar un archivo de prueba para compartir
 Abre una segunda terminal en la misma carpeta del proyecto.
-Crea un archivo cualquiera de menos de 50 MB (recuerda el límite del enunciado). Por ejemplo:
+Si no tienes un archivo listo para compartir en tu carpeta, crea un archivo cualquiera de menos de 50 MB (recuerda el límite del enunciado). Por ejemplo:
 
-Windows PowerShell:
+**Windows PowerShell:**
 ```
 # archivo de 2 MB con datos aleatorios
 $datos = New-Object byte[] 2097152
@@ -93,7 +86,7 @@ $datos = New-Object byte[] 2097152
 [IO.File]::WriteAllBytes("archivos-a-compartir\video.mp4", $datos)
 ```
 
-Para usuarios de Linux/Mac:
+**Para usuarios de Linux/Mac:**
 ```
 # archivo de 2 MB con datos aleatorios
 dd if=/dev/urandom of=archivos-a-compartir/video.mp4 bs=1024 count=2048
@@ -111,8 +104,6 @@ El programa pedirá los datos de configuración. Responde así:
 =========================================
    uTorrent académico — Cliente P2P
 =========================================
-IP del Tracker (ej. 192.168.1.10): 127.0.0.1
-Puerto del Tracker (ej. 6969): 6969
 Puerto local de escucha P2P (ej. 6881): 6881
 Mi peerId: -UT0001-XxXxXxXxXxXx
 
@@ -122,6 +113,7 @@ Selecciona una opción:
 Opción: 1
 Ruta del archivo a compartir: archivos-a-compartir/video.mp4
 ```
+En "Ruta del archivo a compartir" deberás ingresar el archivo que tienes a disposición o creaste (ejemplo: libro.pdf).
 
 Lo que debería pasar a continuación:
 ```
@@ -134,12 +126,10 @@ Y en la Terminal 1 (tracker) verás:
 [Tracker] iniciado     peer=-UT0001- ip=127.0.0.1 pares_swarm=1
 [Tracker] metadatos publicados archivo=video.mp4 ip=127.0.0.1
 ```
-El seeder queda esperando. No presiones ENTER aún: si lo haces, el seeder se detiene. Déjalo así para que pueda servir al leecher.
+El seeder queda esperando. **No presiones ENTER aún**: si lo haces, el seeder se detiene. Déjalo así para que pueda servir al leecher.
 
 **Notas sobre los parámetros:**
 
-- *127.0.0.1 es localhost. Si pruebas entre dos máquinas distintas en la misma red, pon la IP LAN del PC donde corre el tracker (algo como 192.168.1.X — averíguala con ipconfig en Windows o ip addr en Linux).*
-- *Puerto local de escucha P2P = 6881: cada peer necesita su propio puerto único. Como vamos a tener dos peers en la misma máquina, el seeder usa 6881 y el leecher usará 6882.*
 - *Si te equivocas con la ruta del archivo, el programa avisa y termina; vuelves a ejecutarlo.**
 
 ### Terminal 3 — Usuario 2 (Leecher)
@@ -152,8 +142,6 @@ java -cp out utorrent.app.AplicacionCliente
 Responde así:
 
 ```
-IP del Tracker (ej. 192.168.1.10): 127.0.0.1
-Puerto del Tracker (ej. 6969): 6969
 Puerto local de escucha P2P (ej. 6881): 6882
 Mi peerId: -UT0001-YyYyYyYyYyYy
 
@@ -165,7 +153,7 @@ Nombre del archivo a descargar (ej. video.mp4): video.mp4
 Carpeta de destino para la descarga: descargas
 ```
 
-Nota el cambio: puerto local 6882 (no 6881, que ya lo está usando el seeder).
+Nota el cambio: puerto local **6882** (no 6881, que ya lo está usando el seeder).
 
 Lo que verás:
 ```
@@ -184,45 +172,27 @@ Lo que verás:
 [Leecher] Progreso: 8/8 piezas (100.0%)
 [Leecher] ✓ Descarga completa: descargas/video.mp4
 ```
-Las piezas se descargan en orden no secuencial gracias a la selección aleatoria del GestorPiezas — esto es lo que demuestra el algoritmo del enunciado.
+Las piezas se descargan en **orden no secuencial** gracias a la selección aleatoria del GestorPiezas — esto es lo que demuestra el algoritmo del enunciado.
 
-Verificar que la descarga es correcta
+### Verificar que la descarga es correcta
 Abre una cuarta terminal (o usa cualquiera de las anteriores tras detener su programa) y compara los hashes:
-Linux/Mac:
-```
-sha1sum archivos-a-compartir/video.mp4 descargas/video.mp4
-```
 
-
-Windows PowerShell:
+**Windows PowerShell:**
 ```
 Get-FileHash archivos-a-compartir/video.mp4 -Algorithm SHA1
 Get-FileHash descargas/video.mp4 -Algorithm SHA1
 ```
-Ambos hashes deben ser idénticos. Si lo son, has completado la prueba: el archivo se transfirió bit a bit por el protocolo P2P.
-Detener todo
 
-Terminal 3 (leecher): ya terminó cuando el archivo se completó. Si sigue activo (caso del seeder modo descarga), Ctrl+C.
-Terminal 2 (seeder): presiona ENTER en la consola, o Ctrl+C.
-Terminal 1 (tracker): Ctrl+C.
+**Linux/Mac:**
+```
+sha1sum archivos-a-compartir/video.mp4 descargas/video.mp4
+```
+
+Ambos hashes deben ser idénticos. Si lo son, has completado la prueba: el archivo se transfirió bit a bit por el protocolo P2P. Otra manera de verificar que el archivo se descargó con éxito es ingresando manualmente a la carpeta "descargas" desde el Explorador de Archivos y hacer clic en el que se acaba de descargar,
+
 
 ---
-
-## Variantes para la presentación / demo
-Probar concurrencia: dos leechers descargando del mismo seeder
-Abre una Terminal 4 mientras la 1, 2 y 3 siguen activas (o reinicias el seeder y arrancas dos leechers en paralelo):
-```
-java -cp out utorrent.app.AplicacionCliente
-Configuración del segundo leecher:
-```
-- IP Tracker: 127.0.0.1
-- Puerto Tracker: 6969
-- Puerto local: 6883 (distinto a 6881 del seeder y 6882 del primer leecher)
-- Opción: 2
-- Nombre: video.mp4
-- Destino: descargas2 (otra carpeta para no pisar)
-
-En la Terminal 1 (tracker) verás cómo se registran los 3 peers en el swarm. En la Terminal 2 (seeder) verás dos Handshake OK con peerIds distintos, y los request se intercalan entre ambos leechers — esto demuestra el servidor multi-hilo.
+Nota: Puedes probar más de 3 terminales/dispositivos tanto como seeder como leecher.
 
 **Probar tolerancia a fallos: matar el tracker durante la descarga.**
 
@@ -256,3 +226,5 @@ Esto pasa si dos seeders distintos comparten archivos con el mismo nombre pero c
 ## Como correrlo en VS Code
 1. Abrir el proyecto en su carpeta Raiz.
 2. Y seguir los pasos comentados.
+
+¡Cuidado con no seleccionar la carpeta inicial correcta una vez descomprimido el .zip!
